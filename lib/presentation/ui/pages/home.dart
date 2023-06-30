@@ -12,28 +12,53 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
+  late GoogleMapController _controller;
+  late Marker _origin;
+  late Marker _destination;
+  Set<Marker> _markers = {};
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  static late CameraPosition cameraPosition;
+  late List<LatLng> cords = [];
+
+  bool _loading = true;
+  bool _editOriginMarker = false;
+  bool _editDestinationMarker = false;
+
   TextEditingController startController = TextEditingController();
   TextEditingController destinationController = TextEditingController();
-  static String id = 'home';
-  final Completer<GoogleMapController> _controller = Completer();
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  final Set<Marker> _markers = {};
-  static late CameraPosition cameraPosition;
 
   @override
   initState() {
-    super.initState();
     setCameraPosition();
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   Future<void> setCameraPosition() async {
+    setState(() {
+      _loading = true;
+    });
     Position position = await getCurrentLocation();
     setState(() {
       cameraPosition = CameraPosition(
         target: LatLng(position.latitude, position.longitude),
         zoom: 14,
       );
+      _origin = Marker(
+        markerId: const MarkerId('origin'),
+        infoWindow: const InfoWindow(title: 'Origin'),
+        position: LatLng(position.latitude, position.longitude),
+        icon: BitmapDescriptor.defaultMarker,
+      );
+      _markers.add(_origin);
       startController.text = "${position.latitude}, ${position.longitude}";
+      _loading = false;
     });
   }
 
@@ -56,20 +81,39 @@ class _HomeState extends State<Home> {
     return await Geolocator.getCurrentPosition();
   }
 
+  setOriginMarker() {
+    setState(() {
+      _editDestinationMarker = false;
+      _editOriginMarker = true;
+    });
+  }
+
+  setDestinationMarker() {
+    _editDestinationMarker = true;
+    _editOriginMarker = false;
+  }
+
   @override
   Widget build(BuildContext context) {
+    // marker fields
     Widget startTextField = Templates.locationFiled(
         startController,
         "Current Location",
-        CupertinoIcons.location_fill,
-        TextInputType.streetAddress);
+        CupertinoIcons.star_circle_fill,
+        TextInputType.streetAddress,
+        setOriginMarker);
     Widget destinationTextField = Templates.locationFiled(
         destinationController,
         "Destination",
-        CupertinoIcons.star_circle_fill,
-        TextInputType.streetAddress);
+        CupertinoIcons.location_fill,
+        TextInputType.streetAddress,
+        setDestinationMarker);
 
-    return Scaffold(
+    return _loading
+        ? Container(
+      color: Templates.greyColor,
+    )
+        : Scaffold(
       backgroundColor: Templates.whiteColor,
       key: _scaffoldKey,
       body: SafeArea(
@@ -80,35 +124,61 @@ class _HomeState extends State<Home> {
             right: 0,
             bottom: 0,
             child: GoogleMap(
-              zoomControlsEnabled: false,
               myLocationButtonEnabled: true,
               myLocationEnabled: true,
+              zoomControlsEnabled: false,
+              zoomGesturesEnabled: true,
               initialCameraPosition: cameraPosition,
-              onMapCreated: (GoogleMapController controller) {
-                _controller.complete(controller);
+              onMapCreated: (controller) {
+                _controller = controller;
+              },
+              onTap: (data) {
+                if (_editOriginMarker) {
+                  setState(() {
+                    _origin = Marker(
+                      markerId: const MarkerId('origin'),
+                      infoWindow: const InfoWindow(title: 'Origin'),
+                      position: data,
+                      icon: BitmapDescriptor.defaultMarker,
+                    );
+                    _markers.add(_origin);
+                    startController.text =
+                    "${data.latitude}, ${data.longitude}";
+                  });
+                } else if (_editDestinationMarker) {
+                  setState(() {
+                    _destination = Marker(
+                      markerId: const MarkerId('destination'),
+                      infoWindow: const InfoWindow(title: 'Destination'),
+                      position: data,
+                      icon: BitmapDescriptor.defaultMarkerWithHue(200),
+                    );
+                    _markers.add(_destination);
+                    destinationController.text =
+                    "${data.latitude}, ${data.longitude}";
+                  });
+                } else {
+                  setState(() {
+                    _editDestinationMarker = false;
+                    _editOriginMarker = false;
+                  });
+                }
               },
               markers: _markers,
-              onTap: (latlang) {
-                if (_markers.isNotEmpty) {
-                  _markers.clear();
-                }
-                setState(() {
-                  _markers.add(Marker(
-                    markerId: MarkerId(latlang.toString()),
-                    position: latlang,
-                    icon: BitmapDescriptor.defaultMarker,
-                  ));
-                  destinationController.text =
-                      "${latlang.latitude}, ${latlang.longitude}";
-                });
+              polylines: {
+                Polyline(
+                  polylineId: PolylineId('route'),
+                  color: Colors.red,
+                  width: 5,
+                  points: cords,
+                ),
               },
             ),
-            // child: Container(color: Colors.red,),
           ),
           DraggableScrollableSheet(
               initialChildSize: 0.15,
               minChildSize: 0.1,
-              maxChildSize: 0.75,
+              maxChildSize: 0.8,
               builder: (context, scrollController) {
                 return Container(
                   decoration: const BoxDecoration(
@@ -135,13 +205,15 @@ class _HomeState extends State<Home> {
                           Templates.spaceBoxH,
                           Column(
                             children: [
-                              const Text('Where?', style: Templates.subtitle),
+                              const Text('Where?',
+                                  style: Templates.subtitle),
                               Templates.spaceBoxH,
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 16, vertical: 16),
                                 height:
-                                    MediaQuery.of(context).size.height * 0.2,
+                                MediaQuery.of(context).size.height *
+                                    0.2,
                                 decoration: BoxDecoration(
                                   color: Templates.lightGreyColor,
                                   borderRadius: BorderRadius.circular(10),
@@ -149,7 +221,9 @@ class _HomeState extends State<Home> {
                                 child: Row(
                                   children: [
                                     SizedBox(
-                                      width: MediaQuery.of(context).size.width *
+                                      width: MediaQuery.of(context)
+                                          .size
+                                          .width *
                                           0.65,
                                       child: Column(
                                         mainAxisSize: MainAxisSize.min,
@@ -163,21 +237,63 @@ class _HomeState extends State<Home> {
                                     Templates.spaceBoxW,
                                     IconButton(
                                         icon: const Icon(
-                                          CupertinoIcons.arrow_2_squarepath,
+                                          CupertinoIcons
+                                              .arrow_2_squarepath,
                                           color: Templates.darkGreyColor,
                                           size: 30,
                                         ),
                                         onPressed: () {
-                                          final temp = startController.text;
-                                          startController.text =
-                                              destinationController.text;
-                                          destinationController.text = temp;
+                                          if (startController
+                                              .text.isNotEmpty &&
+                                              destinationController
+                                                  .text.isNotEmpty) {
+                                            final tempText =
+                                                startController.text;
+                                            startController.text =
+                                                destinationController
+                                                    .text;
+                                            destinationController.text =
+                                                tempText;
+                                            setState(() {
+                                              final tempOrigin = _origin;
+                                              _origin = Marker(
+                                                markerId: const MarkerId(
+                                                    'origin'),
+                                                infoWindow:
+                                                const InfoWindow(
+                                                    title: 'Origin'),
+                                                position:
+                                                _destination.position,
+                                                icon: BitmapDescriptor
+                                                    .defaultMarker,
+                                              );
+                                              _destination = Marker(
+                                                markerId: const MarkerId(
+                                                    'destination'),
+                                                infoWindow:
+                                                const InfoWindow(
+                                                    title:
+                                                    'Destination'),
+                                                position:
+                                                tempOrigin.position,
+                                                icon: BitmapDescriptor
+                                                    .defaultMarkerWithHue(
+                                                    200),
+                                              );
+                                              _markers = {
+                                                _origin,
+                                                _destination
+                                              };
+                                            });
+                                          }
+                                          return;
                                         }),
                                   ],
                                 ),
                               ),
                               Templates.spaceBoxH,
-                              Templates.elevatedButton("Search Route", () {}),
+                              Templates.elevatedButton(
+                                  "Search Route", () {}),
                               Templates.spaceBoxH,
                               Container(
                                 padding: const EdgeInsets.symmetric(
@@ -194,7 +310,7 @@ class _HomeState extends State<Home> {
                                   children: [
                                     const Row(
                                       mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
+                                      MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text('23 min',
                                             style: Templates.subtitle),
@@ -212,7 +328,7 @@ class _HomeState extends State<Home> {
                                     Templates.spaceBoxNH(8),
                                     Row(
                                       mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
+                                      MainAxisAlignment.spaceBetween,
                                       children: [
                                         Templates.selectButton(
                                             "Choose", () => {}),
@@ -221,11 +337,11 @@ class _HomeState extends State<Home> {
                                     Templates.spaceBoxNH(8),
                                     Row(
                                       children: [
-                                        Templates.routeTag(
-                                            "Bikeway", Icons.directions_bike),
+                                        Templates.routeTag("Bikeway",
+                                            Icons.directions_bike),
                                         Templates.spaceBoxW,
-                                        Templates.routeTag(
-                                            "shared path", CupertinoIcons.car),
+                                        Templates.routeTag("shared path",
+                                            CupertinoIcons.car),
                                       ],
                                     ),
                                   ],
@@ -247,7 +363,7 @@ class _HomeState extends State<Home> {
                                   children: [
                                     const Row(
                                       mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
+                                      MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text('30 min',
                                             style: Templates.subtitle),
@@ -265,7 +381,7 @@ class _HomeState extends State<Home> {
                                     Templates.spaceBoxNH(8),
                                     Row(
                                       mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
+                                      MainAxisAlignment.spaceBetween,
                                       children: [
                                         Templates.selectButton(
                                             "Choose", () => {}),
@@ -274,11 +390,11 @@ class _HomeState extends State<Home> {
                                     Templates.spaceBoxNH(8),
                                     Row(
                                       children: [
-                                        Templates.routeTag(
-                                            "Bikeway", Icons.directions_bike),
+                                        Templates.routeTag("Bikeway",
+                                            Icons.directions_bike),
                                         Templates.spaceBoxW,
-                                        Templates.routeTag(
-                                            "shared path", CupertinoIcons.car),
+                                        Templates.routeTag("shared path",
+                                            CupertinoIcons.car),
                                       ],
                                     ),
                                   ],

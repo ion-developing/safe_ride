@@ -169,7 +169,7 @@ class Templates {
       );
 
   static TextField locationFiled(TextEditingController controller, String text,
-          IconData icon, keyboardType,) =>
+          IconData icon, keyboardType,onTap) =>
       TextField(
         controller: controller,
         style: const TextStyle(
@@ -179,8 +179,10 @@ class Templates {
           letterSpacing: 1.25,
           color: darkGreyColor,
         ),
+        readOnly: true,
         keyboardType: keyboardType,
         decoration: locationInputDecoration(text, icon),
+        onTap: onTap,
       );
 
   static SizedBox elevatedButton(text, onPressed) => SizedBox(
