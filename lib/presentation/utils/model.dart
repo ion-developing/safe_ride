@@ -9,7 +9,7 @@ class Geometry {
   factory Geometry.fromJson(Map<String, dynamic> json) {
     List<LatLng> coordinates = [];
     for (var item in json['coordinates']) {
-      coordinates.add(LatLng(item[1], item[0]));
+      coordinates.add(LatLng(item[0], item[1]));
     }
     return Geometry(
       type: json['type'],
@@ -25,7 +25,7 @@ class ServiceModel {
 
   factory ServiceModel.fromJson(Map<String, dynamic> json) {
     return ServiceModel(
-      geometry: Geometry.fromJson(json['geometry']),
+      geometry: Geometry.fromJson(json['features'][0]['geometry']),
     );
   }
 }

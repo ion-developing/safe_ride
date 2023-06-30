@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../utils/api.dart';
 import '../templates.dart';
 
 class Home extends StatefulWidget {
@@ -40,11 +41,23 @@ class _HomeState extends State<Home> {
     super.dispose();
   }
 
+  Future<void> getRoute(LatLng o, LatLng d) async{
+    final temp = (await SafeRideService().getRouteCoordinates(o, d));
+    if (temp != null) {
+      setState(() {
+        cords = temp;
+      });
+
+    }
+  }
+
   Future<void> setCameraPosition() async {
     setState(() {
       _loading = true;
     });
-    Position position = await getCurrentLocation();
+    // Position position = await getCurrentLocation();
+    //-12.100333555286838, -76.9946046452263
+    LatLng position = const LatLng(-12.100333555286838, -76.9946046452263);
     setState(() {
       cameraPosition = CameraPosition(
         target: LatLng(position.latitude, position.longitude),
@@ -293,7 +306,15 @@ class _HomeState extends State<Home> {
                               ),
                               Templates.spaceBoxH,
                               Templates.elevatedButton(
-                                  "Search Route", () {}),
+                                  "Search Route", () async {
+                                if (startController.text.isNotEmpty &&
+                                    destinationController
+                                        .text.isNotEmpty) {
+                                  await getRoute(
+                                      _origin.position,
+                                      _destination.position);
+                                }
+                              }),
                               Templates.spaceBoxH,
                               Container(
                                 padding: const EdgeInsets.symmetric(
@@ -312,7 +333,7 @@ class _HomeState extends State<Home> {
                                       mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text('23 min',
+                                        Text('10 min',
                                             style: Templates.subtitle),
                                         Text('Best Route',
                                             style: Templates.goodLabel),
@@ -347,59 +368,59 @@ class _HomeState extends State<Home> {
                                   ],
                                 ),
                               ),
-                              Templates.spaceBoxH,
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 16),
-                                decoration: BoxDecoration(
-                                  color: Templates.whiteColor,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: Templates.lightGreyColor,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Column(
-                                  children: [
-                                    const Row(
-                                      mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text('30 min',
-                                            style: Templates.subtitle),
-                                        Text('Slower Route',
-                                            style: Templates.badLabel),
-                                      ],
-                                    ),
-                                    Templates.spaceBoxNH(8),
-                                    const Text(
-                                      'Lorem ipsum dolor - sit amet, consectetur adipiscing elit',
-                                      style: Templates.body,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    Templates.spaceBoxNH(8),
-                                    Row(
-                                      mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Templates.selectButton(
-                                            "Choose", () => {}),
-                                      ],
-                                    ),
-                                    Templates.spaceBoxNH(8),
-                                    Row(
-                                      children: [
-                                        Templates.routeTag("Bikeway",
-                                            Icons.directions_bike),
-                                        Templates.spaceBoxW,
-                                        Templates.routeTag("shared path",
-                                            CupertinoIcons.car),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              )
+                              // Templates.spaceBoxH,
+                              // Container(
+                              //   padding: const EdgeInsets.symmetric(
+                              //       horizontal: 16, vertical: 16),
+                              //   decoration: BoxDecoration(
+                              //     color: Templates.whiteColor,
+                              //     borderRadius: BorderRadius.circular(10),
+                              //     border: Border.all(
+                              //       color: Templates.lightGreyColor,
+                              //       width: 1,
+                              //     ),
+                              //   ),
+                              //   child: Column(
+                              //     children: [
+                              //       const Row(
+                              //         mainAxisAlignment:
+                              //         MainAxisAlignment.spaceBetween,
+                              //         children: [
+                              //           Text('30 min',
+                              //               style: Templates.subtitle),
+                              //           Text('Slower Route',
+                              //               style: Templates.badLabel),
+                              //         ],
+                              //       ),
+                              //       Templates.spaceBoxNH(8),
+                              //       const Text(
+                              //         'Lorem ipsum dolor - sit amet, consectetur adipiscing elit',
+                              //         style: Templates.body,
+                              //         maxLines: 1,
+                              //         overflow: TextOverflow.ellipsis,
+                              //       ),
+                              //       Templates.spaceBoxNH(8),
+                              //       Row(
+                              //         mainAxisAlignment:
+                              //         MainAxisAlignment.spaceBetween,
+                              //         children: [
+                              //           Templates.selectButton(
+                              //               "Choose", () => {}),
+                              //         ],
+                              //       ),
+                              //       Templates.spaceBoxNH(8),
+                              //       Row(
+                              //         children: [
+                              //           Templates.routeTag("Bikeway",
+                              //               Icons.directions_bike),
+                              //           Templates.spaceBoxW,
+                              //           Templates.routeTag("shared path",
+                              //               CupertinoIcons.car),
+                              //         ],
+                              //       ),
+                              //     ],
+                              //   ),
+                              // )
                             ],
                           ),
                         ],
